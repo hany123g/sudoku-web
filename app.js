@@ -137,41 +137,12 @@ function newGame(difficulty = difficultyEl.value) {
 function fillSelectedCell(value) {
   if (!state) return;
 
-  /*
-    지우기 버튼은 토글 방식입니다.
-
-    지우기 OFF 상태에서 누르면:
-    → 지우기 모드 ON
-
-    지우기 ON 상태에서 다시 누르면:
-    → 지우기 모드 OFF
-  */
-  if (value === 0) {
-    if (state.selectedNumber === -1) {
-      state.selectedNumber = 0;
-      state.selected = -1;
-      updateBoardHighlights();
-      updateNumberPad();
-      saveState();
-      setMessage("지우기 모드를 종료했습니다.");
-      return;
-    }
-
-    state.selectedNumber = -1;
-    state.selected = -1;
-    updateBoardHighlights();
-    updateNumberPad();
-    saveState();
-    setMessage("지우기 모드입니다. 지울 칸을 계속 터치하세요. 지우기를 다시 누르면 종료됩니다.");
-    return;
-  }
-
-  state.selectedNumber = value;
+  state.selectedNumber = value === 0 ? -1 : value;
   updateBoardHighlights();
   updateNumberPad();
 
   if (state.selected < 0) {
-    setMessage(`${value} 입력 모드입니다. 빈 칸을 터치하세요.`);
+    setMessage(value === 0 ? "지우기 모드입니다. 지울 칸을 터치하세요." : `${value} 입력 모드입니다. 빈 칸을 터치하세요.`);
     saveState();
     return;
   }
@@ -182,9 +153,10 @@ function fillSelectedCell(value) {
     return;
   }
 
-  updateCell(state.selected, String(value), { lockAfterInput: true });
-  setMessage(`${value}을/를 입력했습니다. 다시 바꾸려면 그 칸을 다시 누르세요.`);
+  updateCell(state.selected, value === 0 ? "" : String(value), { lockAfterInput: true });
+  setMessage(value === 0 ? "선택한 칸을 지웠습니다. 다시 입력하려면 칸을 선택하세요." : `${value}을/를 입력했습니다. 다시 바꾸려면 그 칸을 다시 누르세요.`);
 }
+
 
 function saveState() {
   if (!state) return;
@@ -320,29 +292,6 @@ function updateCell(index, rawValue, options = {}) {
   updateNumberPad();
   saveState();
   maybeFinishGame();
-}
-
-function fillSelectedCell(value) {
-  if (!state) return;
-
-  state.selectedNumber = value === 0 ? -1 : value;
-  updateBoardHighlights();
-  updateNumberPad();
-
-  if (state.selected < 0) {
-    setMessage(value === 0 ? "지우기 모드입니다. 지울 칸을 터치하세요." : `${value} 입력 모드입니다. 빈 칸을 터치하세요.`);
-    saveState();
-    return;
-  }
-
-  if (state.puzzle[state.selected] !== 0) {
-    setMessage("처음부터 있던 숫자는 바꿀 수 없습니다. 다른 빈 칸을 터치하세요.", "bad");
-    saveState();
-    return;
-  }
-
-  updateCell(state.selected, value === 0 ? "" : String(value), { lockAfterInput: true });
-  setMessage(value === 0 ? "선택한 칸을 지웠습니다. 다시 입력하려면 칸을 선택하세요." : `${value}을/를 입력했습니다. 다시 바꾸려면 그 칸을 다시 누르세요.`);
 }
 
 function getHighlightNumber() {
