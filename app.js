@@ -17,15 +17,36 @@ const DIFFICULTY = {
 };
 
 const STORAGE_KEY = "mobile-sudoku-state-v1";
+const COMPLETED_COUNT_KEY = "mobile-sudoku-completed-count-v1";
+
 let state = null;
 let timerHandle = null;
 
+function getCompletedCount() {
+  return Number(localStorage.getItem(COMPLETED_COUNT_KEY) || "0");
+}
+
+function increaseCompletedCount() {
+  const nextCount = getCompletedCount() + 1;
+  localStorage.setItem(COMPLETED_COUNT_KEY, String(nextCount));
+  return nextCount;
+}
+
+function updateHeaderLabel() {
+  if (!state) return;
+
+  difficultyLabelEl.textContent =
+    `${DIFFICULTY[state.difficulty].label} · 완료 ${state.completedCount}회`;
+}
+
 function shuffle(items) {
   const array = [...items];
+
   for (let i = array.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1));
     [array[i], array[j]] = [array[j], array[i]];
   }
+
   return array;
 }
 
@@ -35,8 +56,15 @@ function pattern(row, col) {
 
 function buildSolution() {
   const base = [0, 1, 2];
-  const rows = shuffle(base).flatMap(group => shuffle(base).map(row => group * 3 + row));
-  const cols = shuffle(base).flatMap(group => shuffle(base).map(col => group * 3 + col));
+
+  const rows = shuffle(base).flatMap(group =>
+    shuffle(base).map(row => group * 3 + row)
+  );
+
+  const cols = shuffle(base).flatMap(group =>
+    shuffle(base).map(col => group * 3 + col)
+  );
+
   const nums = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
   return rows.flatMap(row => cols.map(col => nums[pattern(row, col)]));
@@ -50,6 +78,7 @@ function createPuzzle(solution, difficulty) {
 
   for (const index of indexes) {
     if (removed >= blanks) break;
+
     const backup = puzzle[index];
     puzzle[index] = 0;
 
@@ -92,11 +121,15 @@ function countSolutions(grid, limit = 2) {
 
   for (let i = 0; i < 81; i += 1) {
     if (grid[i] !== 0) continue;
+
     const candidates = getCandidates(grid, i);
+
     if (candidates.length === 0) return 0;
+
     if (bestCandidates === null || candidates.length < bestCandidates.length) {
       bestCandidates = candidates;
       bestIndex = i;
+
       if (candidates.length === 1) break;
     }
   }
@@ -104,10 +137,12 @@ function countSolutions(grid, limit = 2) {
   if (bestIndex === -1) return 1;
 
   let total = 0;
+
   for (const candidate of bestCandidates) {
     grid[bestIndex] = candidate;
     total += countSolutions(grid, limit);
     grid[bestIndex] = 0;
+
     if (total >= limit) return total;
   }
 
@@ -117,8 +152,10 @@ function countSolutions(grid, limit = 2) {
 function newGame(difficulty = difficultyEl.value) {
   const solution = buildSolution();
   const puzzle = createPuzzle(solution, difficulty);
+
   state = {
     difficulty,
+    completedCount: getCompletedCount(),
     solution,
     puzzle,
     current: [...puzzle],
@@ -127,8 +164,11 @@ function newGame(difficulty = difficultyEl.value) {
     startedAt: Date.now(),
     elapsedBeforePause: 0,
     completed: false,
+    completionRecorded: false,
   };
+
   difficultyEl.value = difficulty;
+
   saveState();
   render();
   setMessage("숫자를 먼저 누르거나 빈 칸을 선택한 뒤 입력하세요. 입력한 칸은 자동으로 선택 해제됩니다.");
@@ -142,12 +182,23 @@ function saveState() {
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+
     if (!saved || !Array.isArray(saved.current) || saved.current.length !== 81) {
       return false;
     }
+
     state = saved;
-    if (typeof state.selectedNumber !== "number") state.selectedNumber = 0;
+    state.completedCount = getCompletedCount();
+
+    if (typeof state.completionRecorded !== "boolean") {
+      state.completionRecorded = Boolean(state.completed);
+    }
+
+    state.selected = -1;
+    state.selectedNumber = 0;
+
     difficultyEl.value = state.difficulty || "medium";
+
     return true;
   } catch {
     return false;
@@ -156,10 +207,11 @@ function loadState() {
 
 function render() {
   boardEl.innerHTML = "";
-  difficultyLabelEl.textContent = DIFFICULTY[state.difficulty].label;
+  updateHeaderLabel();
 
   state.current.forEach((value, index) => {
     const input = document.createElement("input");
+
     input.className = "cell";
     input.type = "text";
     input.inputMode = "numeric";
@@ -189,6 +241,11 @@ function render() {
 }
 
 function selectCell(index) {
+  if (state.completed) {
+    setMessage("완료된 게임입니다. 새 게임을 시작하거나 초기화하세요.", "ok");
+    return;
+  }
+
   const isSameBlankCell =
     state.selected === index &&
     state.puzzle[index] === 0 &&
@@ -210,15 +267,29 @@ function selectCell(index) {
     updateBoardHighlights();
     updateNumberPad();
     saveState();
-    setMessage("처음부터 있던 숫자는 바꿀 수 없습니다.", "bad");
+
+    if (state.selectedNumber === -1) {
+      setMessage("처음부터 있던 숫자는 지울 수 없습니다.", "bad");
+    } else {
+      setMessage("처음부터 있던 숫자는 바꿀 수 없습니다.", "bad");
+    }
+
+    return;
+  }
+
+  if (state.selectedNumber === -1) {
+    updateCell(index, "", { lockAfterInput: true });
+    state.selectedNumber = -1;
+    updateBoardHighlights();
+    updateNumberPad();
+    saveState();
+    setMessage("선택한 칸을 지웠습니다. 계속 지울 칸을 터치하세요. 지우기를 다시 누르면 종료됩니다.");
     return;
   }
 
   const hasUserValue = state.current[index] !== 0;
 
   if (hasUserValue) {
-    // 이미 사용자가 입력한 칸은 터치만으로 값을 바꾸지 않습니다.
-    // 다시 바꾸려면 이 칸을 선택한 뒤 아래 숫자를 눌러야 합니다.
     state.selectedNumber = 0;
     updateBoardHighlights();
     updateNumberPad();
@@ -233,27 +304,32 @@ function selectCell(index) {
     return;
   }
 
-  if (state.selectedNumber === -1) {
-    updateCell(index, "", { lockAfterInput: true });
-    setMessage("선택한 칸을 지웠습니다. 다시 입력하려면 칸을 선택하세요.");
-    return;
-  }
-
   updateBoardHighlights();
   updateNumberPad();
   saveState();
 }
 
 function updateCell(index, rawValue, options = {}) {
+  if (state.completed) {
+    setMessage("완료된 게임입니다. 새 게임을 시작하거나 초기화하세요.", "ok");
+    return;
+  }
+
   if (state.puzzle[index] !== 0) return;
+
   const value = String(rawValue).replace(/[^1-9]/g, "").slice(0, 1);
   state.current[index] = value ? Number(value) : 0;
+
   if (options.lockAfterInput) {
     state.selected = -1;
   }
+
   const cell = boardEl.querySelector(`[data-index="${index}"]`);
-  if (cell && cell.value !== value) cell.value = value;
-  state.completed = false;
+
+  if (cell && cell.value !== value) {
+    cell.value = value;
+  }
+
   markConflicts();
   updateBoardHighlights();
   updateNumberPad();
@@ -264,12 +340,37 @@ function updateCell(index, rawValue, options = {}) {
 function fillSelectedCell(value) {
   if (!state) return;
 
-  state.selectedNumber = value === 0 ? -1 : value;
+  if (state.completed) {
+    setMessage("완료된 게임입니다. 새 게임을 시작하거나 초기화하세요.", "ok");
+    return;
+  }
+
+  if (value === 0) {
+    if (state.selectedNumber === -1) {
+      state.selectedNumber = 0;
+      state.selected = -1;
+      updateBoardHighlights();
+      updateNumberPad();
+      saveState();
+      setMessage("지우기 모드를 종료했습니다.");
+      return;
+    }
+
+    state.selectedNumber = -1;
+    state.selected = -1;
+    updateBoardHighlights();
+    updateNumberPad();
+    saveState();
+    setMessage("지우기 모드입니다. 지울 칸을 계속 터치하세요. 지우기를 다시 누르면 종료됩니다.");
+    return;
+  }
+
+  state.selectedNumber = value;
   updateBoardHighlights();
   updateNumberPad();
 
   if (state.selected < 0) {
-    setMessage(value === 0 ? "지우기 모드입니다. 지울 칸을 터치하세요." : `${value} 입력 모드입니다. 빈 칸을 터치하세요.`);
+    setMessage(`${value} 입력 모드입니다. 빈 칸을 터치하세요.`);
     saveState();
     return;
   }
@@ -280,14 +381,16 @@ function fillSelectedCell(value) {
     return;
   }
 
-  updateCell(state.selected, value === 0 ? "" : String(value), { lockAfterInput: true });
-  setMessage(value === 0 ? "선택한 칸을 지웠습니다. 다시 입력하려면 칸을 선택하세요." : `${value}을/를 입력했습니다. 다시 바꾸려면 그 칸을 다시 누르세요.`);
+  updateCell(state.selected, String(value), { lockAfterInput: true });
+  setMessage(`${value}을/를 입력했습니다. 다시 바꾸려면 그 칸을 다시 누르세요.`);
 }
 
 function getHighlightNumber() {
   if (!state) return 0;
+
   if (state.selectedNumber > 0) return state.selectedNumber;
   if (state.selected >= 0) return state.current[state.selected] || 0;
+
   return 0;
 }
 
@@ -297,6 +400,7 @@ function updateBoardHighlights() {
   document.querySelectorAll(".cell").forEach(cell => {
     const index = Number(cell.dataset.index);
     const cellValue = state.current[index];
+
     cell.classList.toggle("selected", state.selected === index);
     cell.classList.toggle("same-number", highlightNumber > 0 && cellValue === highlightNumber);
   });
@@ -308,11 +412,29 @@ function updateNumberPad() {
 
   document.querySelectorAll(".number-btn[data-number]").forEach(button => {
     const buttonNumber = Number(button.dataset.number);
-    button.classList.toggle("active", buttonNumber === selectedNumber || (!selectedNumber && buttonNumber === selectedValue));
-    button.setAttribute("aria-pressed", buttonNumber === selectedNumber ? "true" : "false");
+
+    const usedCount = state
+      ? state.current.filter(value => value === buttonNumber).length
+      : 0;
+
+    const isActive =
+      buttonNumber === selectedNumber ||
+      (!selectedNumber && buttonNumber === selectedValue);
+
+    const isDone = usedCount >= 9;
+
+    button.classList.toggle("active", isActive);
+    button.classList.toggle("done", isDone);
+
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    button.setAttribute(
+      "aria-label",
+      isDone ? `${buttonNumber}, 9개 모두 사용됨` : `${buttonNumber}`
+    );
   });
 
   const eraseButton = document.querySelector(".number-btn.erase");
+
   if (eraseButton) {
     eraseButton.classList.toggle("active", selectedNumber === -1);
     eraseButton.setAttribute("aria-pressed", selectedNumber === -1 ? "true" : "false");
@@ -322,6 +444,7 @@ function updateNumberPad() {
 function handleKeydown(event, index) {
   const row = Math.floor(index / 9);
   const col = index % 9;
+
   const moves = {
     ArrowUp: [Math.max(row - 1, 0), col],
     ArrowDown: [Math.min(row + 1, 8), col],
@@ -343,9 +466,11 @@ function handleKeydown(event, index) {
 
   if (moves[event.key]) {
     event.preventDefault();
+
     const [nextRow, nextCol] = moves[event.key];
     const nextIndex = nextRow * 9 + nextCol;
     const next = boardEl.querySelector(`[data-index="${nextIndex}"]`);
+
     if (next) {
       next.focus();
       selectCell(nextIndex);
@@ -374,14 +499,23 @@ function getConflicts() {
 
   groups.forEach(group => {
     const seen = new Map();
+
     group.forEach(index => {
       const value = state.current[index];
+
       if (!value) return;
-      if (!seen.has(value)) seen.set(value, []);
+
+      if (!seen.has(value)) {
+        seen.set(value, []);
+      }
+
       seen.get(value).push(index);
     });
+
     seen.forEach(indexes => {
-      if (indexes.length > 1) indexes.forEach(index => conflicts.add(index));
+      if (indexes.length > 1) {
+        indexes.forEach(index => conflicts.add(index));
+      }
     });
   });
 
@@ -390,21 +524,43 @@ function getConflicts() {
 
 function markConflicts() {
   const conflicts = getConflicts();
+
   document.querySelectorAll(".cell").forEach(cell => {
     const index = Number(cell.dataset.index);
     cell.classList.toggle("conflict", conflicts.has(index));
   });
 }
 
+function completeGame() {
+  if (state.completionRecorded) {
+    state.completed = true;
+    saveState();
+    updateHeaderLabel();
+    setMessage(`이미 완료된 게임입니다. 완료 ${state.completedCount}회입니다.`, "ok");
+    return;
+  }
+
+  state.completed = true;
+  state.completionRecorded = true;
+  state.completedCount = increaseCompletedCount();
+
+  saveState();
+  updateHeaderLabel();
+
+  setMessage(`성공! 스도쿠를 완성했습니다. 완료 ${state.completedCount}회입니다.`, "ok");
+
+  document.querySelectorAll(".cell").forEach(cell => {
+    cell.classList.add("correct-flash");
+  });
+}
+
 function maybeFinishGame() {
+  if (state.completed) return;
   if (state.current.some(value => value === 0)) return;
   if (getConflicts().size > 0) return;
   if (!state.current.every((value, index) => value === state.solution[index])) return;
 
-  state.completed = true;
-  saveState();
-  setMessage("성공! 스도쿠를 완성했습니다.", "ok");
-  document.querySelectorAll(".cell").forEach(cell => cell.classList.add("correct-flash"));
+  completeGame();
 }
 
 function checkBoard() {
@@ -427,13 +583,15 @@ function checkBoard() {
     return;
   }
 
-  state.completed = true;
-  saveState();
-  setMessage("성공! 스도쿠를 완성했습니다.", "ok");
-  document.querySelectorAll(".cell").forEach(cell => cell.classList.add("correct-flash"));
+  completeGame();
 }
 
 function giveHint() {
+  if (state.completed) {
+    setMessage("완료된 게임입니다. 새 게임을 시작하세요.", "ok");
+    return;
+  }
+
   const blanks = state.current
     .map((value, index) => ({ value, index }))
     .filter(item => item.value === 0 && state.puzzle[item.index] === 0);
@@ -445,14 +603,19 @@ function giveHint() {
 
   const pick = blanks[Math.floor(Math.random() * blanks.length)].index;
   state.current[pick] = state.solution[pick];
+
   saveState();
   render();
+
   const cell = boardEl.querySelector(`[data-index="${pick}"]`);
+
   if (cell) {
     cell.focus();
     cell.classList.add("correct-flash");
   }
+
   setMessage("힌트 하나를 채웠습니다.");
+  maybeFinishGame();
 }
 
 function resetBoard() {
@@ -461,7 +624,13 @@ function resetBoard() {
   state.selectedNumber = 0;
   state.startedAt = Date.now();
   state.elapsedBeforePause = 0;
+
+  /*
+    이미 완료 기록된 게임을 초기화해도
+    완료 횟수는 다시 증가하지 않도록 completionRecorded는 유지합니다.
+  */
   state.completed = false;
+
   saveState();
   render();
   setMessage("처음 상태로 되돌렸습니다.");
@@ -475,20 +644,27 @@ function setMessage(text, type = "") {
 function formatTime(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
   const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+
   return `${minutes}:${seconds}`;
 }
 
 function startTimer() {
   clearInterval(timerHandle);
+
   timerHandle = setInterval(() => {
     if (!state || state.completed) return;
-    const seconds = Math.floor((Date.now() - state.startedAt + state.elapsedBeforePause) / 1000);
+
+    const seconds = Math.floor(
+      (Date.now() - state.startedAt + state.elapsedBeforePause) / 1000
+    );
+
     timerEl.textContent = formatTime(seconds);
   }, 250);
 }
 
 numberPadEl.addEventListener("click", event => {
   const button = event.target.closest("button");
+
   if (!button) return;
 
   if (button.dataset.erase === "true") {
@@ -511,5 +687,5 @@ if (!loadState()) {
   newGame("medium");
 } else {
   render();
-  setMessage("저장된 게임을 불러왔습니다. 입력한 칸은 자동으로 선택 해제됩니다.");
+  setMessage("저장된 게임을 불러왔습니다. 입력 모드와 지우기 모드는 해제되었습니다.");
 }
