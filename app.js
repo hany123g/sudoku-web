@@ -551,6 +551,7 @@ function completeGame() {
   state.completed = true;
   state.completionRecorded = true;
   state.completedCount = increaseCompletedCount();
+  state.elapsedBeforePause = getElapsedMilliseconds();
 
   saveState();
   updateHeaderLabel();
@@ -721,6 +722,22 @@ numberPadEl.addEventListener("click", event => {
   if (button.dataset.number) {
     fillSelectedCell(Number(button.dataset.number));
   }
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    pauseTimer();
+  } else {
+    resumeTimer();
+  }
+});
+
+window.addEventListener("pagehide", () => {
+  pauseTimer();
+});
+
+window.addEventListener("beforeunload", () => {
+  pauseTimer();
 });
 
 newGameBtn.addEventListener("click", () => newGame(difficultyEl.value));
