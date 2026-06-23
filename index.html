@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <title>Mobile Sudoku</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <section class="hero" aria-labelledby="title">
+      <div>
+        <p class="eyebrow">GitHub Pages Web Game</p>
+        <h1 id="title">스도쿠</h1>
+        <p class="subtitle">휴대폰 브라우저에서 바로 즐기는 9x9 스도쿠입니다.</p>
+      </div>
+      <div class="stats" aria-label="game status">
+        <span id="difficultyLabel">보통</span>
+        <strong id="timer">00:00</strong>
+      </div>
+    </section>
+
+    <section class="toolbar" aria-label="game controls">
+      <label class="select-wrap">
+        난이도
+        <select id="difficulty">
+          <option value="easy">쉬움</option>
+          <option value="medium" selected>보통</option>
+          <option value="hard">어려움</option>
+        </select>
+      </label>
+      <button id="newGameBtn" type="button">새 게임</button>
+      <button id="checkBtn" type="button">검사</button>
+      <button id="hintBtn" type="button">힌트</button>
+      <button id="resetBtn" type="button">초기화</button>
+    </section>
+
+    <section class="game-card">
+      <div id="board" class="board" aria-label="Sudoku board"></div>
+      <div id="numberPad" class="number-pad" aria-label="숫자 입력 패드">
+        <button class="number-btn" type="button" data-number="1">1</button>
+        <button class="number-btn" type="button" data-number="2">2</button>
+        <button class="number-btn" type="button" data-number="3">3</button>
+        <button class="number-btn" type="button" data-number="4">4</button>
+        <button class="number-btn" type="button" data-number="5">5</button>
+        <button class="number-btn" type="button" data-number="6">6</button>
+        <button class="number-btn" type="button" data-number="7">7</button>
+        <button class="number-btn" type="button" data-number="8">8</button>
+        <button class="number-btn" type="button" data-number="9">9</button>
+        <button class="number-btn erase" type="button" data-erase="true">지우기</button>
+      </div>
+      <p id="message" class="message" role="status" aria-live="polite">빈 칸을 1~9 숫자로 채워보세요.</p>
+    </section>
+
+    <section class="help">
+      <details>
+        <summary>게임 방법</summary>
+        <p>각 가로줄, 세로줄, 3x3 박스 안에 1부터 9까지 숫자가 한 번씩 들어가야 합니다.</p>
+      </details>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
