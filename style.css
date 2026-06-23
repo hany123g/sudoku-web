@@ -150,6 +150,7 @@ button:active {
 .board {
   display: grid;
   grid-template-columns: repeat(9, 1fr);
+  grid-template-rows: repeat(9, 1fr);
   width: min(100%, 532px);
   aspect-ratio: 1 / 1;
   margin: 0 auto;
@@ -162,6 +163,8 @@ button:active {
 .cell {
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   border: 0;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
