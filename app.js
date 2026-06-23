@@ -4,7 +4,6 @@ const timerEl = document.getElementById("timer");
 const difficultyEl = document.getElementById("difficulty");
 const difficultyLabelEl = document.getElementById("difficultyLabel");
 const numberPadEl = document.getElementById("numberPad");
-
 const newGameBtn = document.getElementById("newGameBtn");
 const checkBtn = document.getElementById("checkBtn");
 const hintBtn = document.getElementById("hintBtn");
@@ -194,6 +193,15 @@ function loadState() {
       state.completionRecorded = Boolean(state.completed);
     }
 
+    state.elapsedBeforePause =
+      typeof state.elapsedBeforePause === "number" ? state.elapsedBeforePause : 0;
+
+    /*
+      저장된 게임을 다시 불러올 때는
+      닫혀 있던 시간은 제외하고 지금부터 다시 시작합니다.
+    */
+    state.startedAt = Date.now();
+    
     state.selected = -1;
     state.selectedNumber = 0;
 
@@ -648,18 +656,56 @@ function formatTime(totalSeconds) {
   return `${minutes}:${seconds}`;
 }
 
+function getElapsedMilliseconds() {
+  if (!state) return 0;
+
+  if (state.completed) {
+    return state.elapsedBeforePause || 0;
+  }
+
+  return Date.now() - state.startedAt + (state.elapsedBeforePause || 0);
+}
+
+function updateTimerDisplay() {
+  const seconds = Math.floor(getElapsedMilliseconds() / 1000);
+  timerEl.textContent = formatTime(seconds);
+}
+
+function pauseTimer() {
+  if (!state || state.completed) return;
+
+  state.elapsedBeforePause = getElapsedMilliseconds();
+  state.startedAt = Date.now();
+
+  clearInterval(timerHandle);
+  saveState();
+  updateTimerDisplay();
+}
+
+function resumeTimer() {
+  if (!state || state.completed) return;
+
+  state.startedAt = Date.now();
+  saveState();
+  startTimer();
+}
+
 function startTimer() {
   clearInterval(timerHandle);
 
+  updateTimerDisplay();
+
   timerHandle = setInterval(() => {
-    if (!state || state.completed) return;
+    if (!state) return;
 
-    const seconds = Math.floor(
-      (Date.now() - state.startedAt + state.elapsedBeforePause) / 1000
-    );
+    if (state.completed) {
+      clearInterval(timerHandle);
+      updateTimerDisplay();
+      return;
+    }
 
-    timerEl.textContent = formatTime(seconds);
-  }, 250);
+    updateTimerDisplay();
+  }, 1000);
 }
 
 numberPadEl.addEventListener("click", event => {
