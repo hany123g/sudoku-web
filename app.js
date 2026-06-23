@@ -134,6 +134,58 @@ function newGame(difficulty = difficultyEl.value) {
   setMessage("숫자를 먼저 누르거나 빈 칸을 선택한 뒤 입력하세요. 입력한 칸은 자동으로 선택 해제됩니다.");
 }
 
+function fillSelectedCell(value) {
+  if (!state) return;
+
+  /*
+    지우기 버튼은 토글 방식입니다.
+
+    지우기 OFF 상태에서 누르면:
+    → 지우기 모드 ON
+
+    지우기 ON 상태에서 다시 누르면:
+    → 지우기 모드 OFF
+  */
+  if (value === 0) {
+    if (state.selectedNumber === -1) {
+      state.selectedNumber = 0;
+      state.selected = -1;
+      updateBoardHighlights();
+      updateNumberPad();
+      saveState();
+      setMessage("지우기 모드를 종료했습니다.");
+      return;
+    }
+
+    state.selectedNumber = -1;
+    state.selected = -1;
+    updateBoardHighlights();
+    updateNumberPad();
+    saveState();
+    setMessage("지우기 모드입니다. 지울 칸을 계속 터치하세요. 지우기를 다시 누르면 종료됩니다.");
+    return;
+  }
+
+  state.selectedNumber = value;
+  updateBoardHighlights();
+  updateNumberPad();
+
+  if (state.selected < 0) {
+    setMessage(`${value} 입력 모드입니다. 빈 칸을 터치하세요.`);
+    saveState();
+    return;
+  }
+
+  if (state.puzzle[state.selected] !== 0) {
+    setMessage("처음부터 있던 숫자는 바꿀 수 없습니다. 다른 빈 칸을 터치하세요.", "bad");
+    saveState();
+    return;
+  }
+
+  updateCell(state.selected, String(value), { lockAfterInput: true });
+  setMessage(`${value}을/를 입력했습니다. 다시 바꾸려면 그 칸을 다시 누르세요.`);
+}
+
 function saveState() {
   if (!state) return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
