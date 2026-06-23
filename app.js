@@ -548,11 +548,11 @@ function completeGame() {
     return;
   }
 
+  state.elapsedBeforePause = getElapsedMilliseconds();
   state.completed = true;
   state.completionRecorded = true;
   state.completedCount = increaseCompletedCount();
-  state.elapsedBeforePause = getElapsedMilliseconds();
-
+  
   saveState();
   updateHeaderLabel();
 
@@ -691,6 +691,15 @@ function resumeTimer() {
   startTimer();
 }
 
+function saveCurrentElapsedTime() {
+  if (!state || state.completed) return;
+
+  state.elapsedBeforePause = getElapsedMilliseconds();
+  state.startedAt = Date.now();
+
+  saveState();
+}
+
 function startTimer() {
   clearInterval(timerHandle);
 
@@ -706,6 +715,12 @@ function startTimer() {
     }
 
     updateTimerDisplay();
+
+    /*
+      휴대폰에서 프로세스가 갑자기 종료되어도
+      최근 시간이 남도록 매초 저장합니다.
+    */
+    saveCurrentElapsedTime();
   }, 1000);
 }
 
