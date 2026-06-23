@@ -214,6 +214,21 @@ function selectCell(index) {
     return;
   }
 
+    /*
+    지우기 모드가 켜져 있으면,
+    사용자가 입력한 칸을 계속 터치해서 지울 수 있습니다.
+    지우기 모드는 유지됩니다.
+  */
+  if (state.selectedNumber === -1) {
+    updateCell(index, "", { lockAfterInput: true });
+    state.selectedNumber = -1;
+    updateBoardHighlights();
+    updateNumberPad();
+    saveState();
+    setMessage("선택한 칸을 지웠습니다. 계속 지울 칸을 터치하세요. 지우기를 다시 누르면 종료됩니다.");
+    return;
+  }
+  
   const hasUserValue = state.current[index] !== 0;
 
   if (hasUserValue) {
@@ -230,12 +245,6 @@ function selectCell(index) {
   if (state.selectedNumber > 0) {
     updateCell(index, state.selectedNumber, { lockAfterInput: true });
     setMessage(`${state.selectedNumber}을/를 입력했습니다. 다시 바꾸려면 그 칸을 다시 누르세요.`);
-    return;
-  }
-
-  if (state.selectedNumber === -1) {
-    updateCell(index, "", { lockAfterInput: true });
-    setMessage("선택한 칸을 지웠습니다. 다시 입력하려면 칸을 선택하세요.");
     return;
   }
 
