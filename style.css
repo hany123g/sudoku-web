@@ -339,3 +339,42 @@ button:active {
   color: var(--danger);
   border: 0;
 }
+
+/* 스도쿠 칸 숫자 색상 강제 적용 */
+input.cell {
+  color: var(--accent) !important;
+  -webkit-text-fill-color: var(--accent) !important;
+  opacity: 1;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* 처음부터 있던 숫자 */
+input.cell.given {
+  color: var(--ink) !important;
+  -webkit-text-fill-color: var(--ink) !important;
+}
+
+/* 같은 숫자 강조 */
+input.cell.same-number {
+  color: #b45309 !important;
+  -webkit-text-fill-color: #b45309 !important;
+}
+
+/* 처음부터 있던 숫자가 같은 숫자로 강조될 때 */
+input.cell.given.same-number {
+  color: #78350f !important;
+  -webkit-text-fill-color: #78350f !important;
+}
+
+/* 선택된 같은 숫자 */
+input.cell.selected.same-number {
+  color: var(--accent) !important;
+  -webkit-text-fill-color: var(--accent) !important;
+}
+
+/* 충돌 숫자 */
+input.cell.conflict {
+  color: var(--danger) !important;
+  -webkit-text-fill-color: var(--danger) !important;
+}
