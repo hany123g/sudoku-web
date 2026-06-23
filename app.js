@@ -308,8 +308,23 @@ function updateNumberPad() {
 
   document.querySelectorAll(".number-btn[data-number]").forEach(button => {
     const buttonNumber = Number(button.dataset.number);
-    button.classList.toggle("active", buttonNumber === selectedNumber || (!selectedNumber && buttonNumber === selectedValue));
-    button.setAttribute("aria-pressed", buttonNumber === selectedNumber ? "true" : "false");
+    const usedCount = state
+      ? state.current.filter(value => value === buttonNumber).length
+      : 0;
+
+    const isActive =
+      buttonNumber === selectedNumber ||
+      (!selectedNumber && buttonNumber === selectedValue);
+
+    const isDone = usedCount >= 9;
+
+    button.classList.toggle("active", isActive);
+    button.classList.toggle("done", isDone);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    button.setAttribute(
+      "aria-label",
+      isDone ? `${buttonNumber}, 9개 모두 사용됨` : `${buttonNumber}`
+    );
   });
 
   const eraseButton = document.querySelector(".number-btn.erase");
